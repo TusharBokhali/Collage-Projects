@@ -1,0 +1,373 @@
+<?php
+include_once 'site_connection.php';
+
+// Check if user is logged in
+if(!isset($_SESSION['login'])) {
+    header('location:login_home.php');
+    exit();
+}
+
+// Check if order details exist
+if(!isset($_SESSION['order_details'])) {
+    header('location:order-now.php');
+    exit();
+}
+
+$order_details = $_SESSION['order_details'];
+$amount = $order_details['amount']; // Amount in paise
+$user_email = $order_details['email'];
+$user_name = $order_details['name'];
+$user_mobile = $order_details['mobile'];
+
+// Razorpay Configuration - Test Mode (Working Test Key)
+$razorpay_key_id = 'rzp_test_1DP5mmOlF5G5ag'; // Working test key
+$razorpay_key_secret = 'thisissecret'; // Secret key (only for backend)
+
+// Generate unique order ID for Razorpay
+$razorpay_order_id = 'RZP_' . time() . '_' . uniqid();
+
+// Store Razorpay order ID in session for verification
+$_SESSION['razorpay_order_id'] = $razorpay_order_id;
+
+// Debug information (remove in production)
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Payment - Razorpay</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/png" href="images/icons/favicon.png"/>
+    <link rel="stylesheet" type="text/css" href="vendor/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="fonts/font-awesome-4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" type="text/css" href="css/main_css.css">
+    
+    <style>
+        .payment-container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 30px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .payment-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .payment-details {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .amount-display {
+            font-size: 24px;
+            font-weight: bold;
+            color: #28a745;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .razorpay-button {
+            background: #528FF0;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+        }
+        .razorpay-button:hover {
+            background: #3A7BD5;
+        }
+        .back-button {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 15px;
+        }
+        .back-button:hover {
+            background: #5a6268;
+            color: white;
+            text-decoration: none;
+        }
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .test-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .debug-info {
+            background: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="payment-container">
+        <div class="payment-header">
+            <h2><i class="fa fa-credit-card"></i> Complete Your Payment</h2>
+            <p>Secure payment powered by Razorpay</p>
+        </div>
+        
+        <!-- Debug Information (Remove in production) -->
+        <div class="debug-info">
+            <strong>Debug Info:</strong><br>
+            Amount: ₹<?php echo number_format($amount/100, 2); ?> (<?php echo $amount; ?> paise)<br>
+            Order ID: <?php echo $razorpay_order_id; ?><br>
+            Key ID: <?php echo substr($razorpay_key_id, 0, 20) . '...'; ?><br>
+            Session Status: <?php echo session_status() === PHP_SESSION_ACTIVE ? 'Active' : 'Inactive'; ?>
+        </div>
+        
+        <!-- Test Mode Information -->
+        <div class="test-info">
+            <h6><i class="fa fa-info-circle"></i> Test Mode Active</h6>
+            <p><strong>Test Cards:</strong></p>
+            <ul style="margin: 5px 0; padding-left: 20px;">
+                <li><strong>Success:</strong> 4111 1111 1111 1111</li>
+                <li><strong>Failure:</strong> 4000 0000 0000 0002</li>
+            </ul>
+            <p><strong>Test UPI:</strong> success@razorpay (always succeeds)</p>
+        </div>
+        
+        <div class="payment-details">
+            <h5>Order Summary</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Customer:</strong> <?php echo htmlspecialchars($user_name); ?></p>
+                    <p><strong>Email:</strong> <?php echo htmlspecialchars($user_email); ?></p>
+                    <p><strong>Mobile:</strong> <?php echo htmlspecialchars($user_mobile); ?></p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Payment Method:</strong> <?php echo htmlspecialchars($order_details['payment']); ?></p>
+                    <p><strong>Order Date:</strong> <?php echo date('d M Y, h:i A', strtotime($order_details['date_time'])); ?></p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="amount-display">
+            Total Amount: ₹<?php echo number_format($amount/100, 2); ?>
+        </div>
+        
+        <button class="razorpay-button" onclick="initiatePayment()" id="pay-button">
+            <i class="fa fa-lock"></i> Pay Securely with Razorpay
+        </button>
+        
+        <a href="order-now.php" class="back-button">
+            <i class="fa fa-arrow-left"></i> Back to Order
+        </a>
+    </div>
+</div>
+
+<!-- Razorpay SDK -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<script>
+// Global variables for debugging
+let paymentAttempted = false;
+let paymentModal = null;
+
+function initiatePayment() {
+// alert()
+    console.log('Payment initiation started...');
+    
+    // Prevent double clicks
+    if (paymentAttempted) {
+        console.log('Payment already attempted, preventing double click');
+        return;
+    }
+    
+    paymentAttempted = true;
+    
+    // Disable button to prevent double clicks
+    const payButton = document.getElementById('pay-button');
+    payButton.disabled = true;
+    payButton.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Processing...';
+    
+    try {
+
+        // alert("=========")
+        console.log('Creating Razorpay options...');
+        
+        var options = {
+            "key": "<?php echo $razorpay_key_id; ?>",
+            "amount": "<?php echo $amount; ?>",
+            "currency": "INR",
+            "name": "Your Store Name",
+            "description": "Order Payment - <?php echo htmlspecialchars($user_name); ?>",
+            "image": "images/icons/logo-01.png",
+            "order_id": "<?php echo $razorpay_order_id; ?>",
+            "handler": function (response) {
+                console.log('Payment successful response:', response);
+                handlePaymentSuccess(response);
+            },
+            "prefill": {
+                "name": "<?php echo htmlspecialchars($user_name); ?>",
+                "email": "<?php echo htmlspecialchars($user_email); ?>",
+                "contact": "<?php echo htmlspecialchars($user_mobile); ?>"
+            },
+            "notes": {
+                "address": "<?php echo htmlspecialchars($order_details['address']); ?>",
+                "city": "<?php echo htmlspecialchars($order_details['city']); ?>",
+                "pincode": "<?php echo htmlspecialchars($order_details['pincode']); ?>",
+                "order_type": "ecommerce"
+            },
+            "theme": {
+                "color": "#528FF0"
+            },
+            "modal": {
+                "ondismiss": function() {
+                    console.log("Payment modal dismissed");
+                    resetPaymentButton();
+                },
+                "onload": function() {
+                    console.log("Payment modal loaded");
+                }
+            },
+            "config": {
+                "display": {
+                    "blocks": {
+                        "banks": {
+                            "name": "Pay using UPI",
+                            "instruments": [
+                                {
+                                    "method": "upi"
+                                }
+                            ]
+                        }
+                    },
+                    "sequence": ["block.banks"],
+                    "prefill": {
+                        "method": "upi"
+                    }
+                }
+            }
+        };
+        
+        console.log('Razorpay options created:', options);
+        console.log('Amount being sent:', options.amount);
+        console.log('Order ID being sent:', options.order_id);
+        
+        // Create and open Razorpay instance
+        console.log('Creating Razorpay instance...');
+        paymentModal = new Razorpay(options);
+        
+        console.log('Opening Razorpay modal...');
+        paymentModal.open();
+        
+        console.log('Payment modal opened successfully');
+        
+    } catch (error) {
+        console.error('Error in payment initiation:', error);
+        alert('Payment initialization failed: ' + error.message);
+        resetPaymentButton();
+    }
+}
+
+function resetPaymentButton() {
+    const payButton = document.getElementById('pay-button');
+    payButton.disabled = false;
+    payButton.innerHTML = '<i class="fa fa-lock"></i> Pay Securely with Razorpay';
+    paymentAttempted = false;
+}
+
+function handlePaymentSuccess(response) {
+    console.log('Payment success handler called with:', response);
+    
+    try {
+        // Validate response
+        if (!response.razorpay_payment_id) {
+            throw new Error('Payment ID not received');
+        }
+        
+        if (!response.razorpay_order_id) {
+            throw new Error('Order ID not received');
+        }
+        
+        // Show success message
+        alert('Payment Successful!\nPayment ID: ' + response.razorpay_payment_id + '\nOrder ID: ' + response.razorpay_order_id);
+        
+        // Redirect to order-now.php with payment success parameters
+        window.location.href = 'order-now.php?payment_id=' + response.razorpay_payment_id + '&payment_status=success&razorpay_order_id=' + response.razorpay_order_id;
+        
+    } catch (error) {
+        console.error('Error in payment success handler:', error);
+        alert('Payment verification failed: ' + error.message);
+        resetPaymentButton();
+    }
+}
+
+function handlePaymentFailure(response) {
+    console.log('Payment failure handler called with:', response);
+    alert('Payment Failed! Please try again.========================');
+    window.location.href = 'order-now.php?payment_status=failed';
+}
+
+// Listen for payment events
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Payment page loaded successfully');
+    console.log('Order details:', <?php echo json_encode($order_details); ?>);
+    console.log('Razorpay order ID:', '<?php echo $razorpay_order_id; ?>');
+    console.log('Amount in paise:', <?php echo $amount; ?>);
+    console.log('Razorpay key ID:', '<?php echo $razorpay_key_id; ?>');
+    
+    // Check if Razorpay SDK is loaded
+    if (typeof Razorpay === 'undefined') {
+        console.error('Razorpay SDK not loaded!');
+        alert('Payment system not available. Please refresh the page.');
+    } else {
+        console.log('Razorpay SDK loaded successfully');
+    }
+});
+
+// Handle page unload to prevent accidental navigation
+window.addEventListener('beforeunload', function(e) {
+    if (document.getElementById('pay-button').disabled) {
+        e.preventDefault();
+        e.returnValue = 'Payment is in progress. Are you sure you want to leave?';
+    }
+});
+
+// Global error handler
+window.addEventListener('error', function(e) {
+    console.error('Global error caught:', e.error);
+    alert('An error occurred: ' + e.error.message);
+    resetPaymentButton();
+});
+
+// Handle unhandled promise rejections
+window.addEventListener('unhandledrejection', function(e) {
+    console.error('Unhandled promise rejection:', e.reason);
+    alert('Payment system error: ' + e.reason);
+    resetPaymentButton();
+});
+</script>
+
+</body>
+</html>

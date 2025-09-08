@@ -86,7 +86,7 @@ if (isset($_POST['buy'])) {
 			'email' => $email,
 			'date_time' => $date_time,
 			'payment' => $payment,
-			'amount' => $total_price * 100, // Convert to paise for Razorpay
+			'amount' => (int)round($total_price * 100), // Convert to paise (int)
 			'user_id' => $login_id,
 			'total_price' => $total_price
 		);
@@ -103,6 +103,8 @@ if(isset($_GET['payment_id']) && isset($_GET['payment_status'])) {
 	$payment_status = $_GET['payment_status'];
 	$razorpay_order_id = $_GET['razorpay_order_id'] ?? '';
 	$razorpay_signature = $_GET['razorpay_signature'] ?? '';
+	$failure_code = $_GET['code'] ?? '';
+	$failure_desc = $_GET['reason'] ?? '';
 	
 	if($payment_status == 'success') {
 		// Verify signature
@@ -113,7 +115,11 @@ if(isset($_GET['payment_id']) && isset($_GET['payment_status'])) {
 			$error_message = "Payment verification failed. Invalid signature.";
 		}
 	} else {
-		$error_message = "Payment failed. Please try again.";
+		$error_details = '';
+		if (!empty($failure_code) || !empty($failure_desc)) {
+			$error_details = " (" . htmlspecialchars($failure_code) . ": " . htmlspecialchars($failure_desc) . ")";
+		}
+		$error_message = "Payment failed. Please try again." . $error_details;
 		// Clear failed order details from session
 		unset($_SESSION['order_details']);
 		unset($_SESSION['razorpay_order_id']);

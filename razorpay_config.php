@@ -5,12 +5,12 @@
  */
 
 // Test Mode Credentials (for development/testing)
-define('RAZORPAY_TEST_KEY_ID', 'rzp_test_R9R8ogg9z07pEW');
+define('RAZORPAY_TEST_KEY_ID', 'rzp_test_R9R8ogg9z07pEW');    
 define('RAZORPAY_TEST_KEY_SECRET', 'yv7TqC9TIC1gV2na8cuy3tsh');
 
-// Production Mode Credentials (for live website)
-define('RAZORPAY_LIVE_KEY_ID', 'rzp_test_R9R8ogg9z07pEW');
-define('RAZORPAY_LIVE_KEY_SECRET', 'yv7TqC9TIC1gV2na8cuy3tsh');
+// Live Mode Credentials (for live website)
+// define('RAZORPAY_LIVE_KEY_ID', 'rzp_live_xxxxxxxxxxxxx');
+// define('RAZORPAY_LIVE_KEY_SECRET', 'xxxxxxxxxxxxxxxxxxx');
 
 // Environment setting (change to 'production' for live website)
 define('RAZORPAY_ENVIRONMENT', 'test'); // Options: 'test' or 'production'
@@ -19,16 +19,16 @@ define('RAZORPAY_ENVIRONMENT', 'test'); // Options: 'test' or 'production'
 function getRazorpayCredentials() {
     if (RAZORPAY_ENVIRONMENT === 'production') {
         return array(
-            'key_id' => 'rzp_test_R9R8ogg9z07pEW',
-            'key_secret' => 'yv7TqC9TIC1gV2na8cuy3tsh'
-        );
-    } else {
-        return array(
-            'key_id' => 'rzp_test_R9R8ogg9z07pEW',
-            'key_secret' => 'yv7TqC9TIC1gV2na8cuy3tsh'
+            'key_id' => RAZORPAY_LIVE_KEY_ID,
+            'key_secret' => RAZORPAY_LIVE_KEY_SECRET
         );
     }
+    return array(
+        'key_id' => RAZORPAY_TEST_KEY_ID,
+        'key_secret' => RAZORPAY_TEST_KEY_SECRET
+    );
 }
+
 
 // Get current environment name
 function getRazorpayEnvironment() {

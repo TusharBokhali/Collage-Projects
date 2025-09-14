@@ -1,6 +1,6 @@
 <?php include_once 'header.php';
 
-$sql_select_data = "select * from `order` where `status`='Pending'";
+$sql_select_data = "select * from `order` where `status`='Pending' ORDER BY `date_time` DESC";
 $data_data = mysqli_query($conn,$sql_select_data);
 $data_count = mysqli_num_rows($data_data);
 
@@ -18,7 +18,7 @@ else
 
 $start = ($page_no-1)*$limit;
 
-$sql_select = "select * from `order` where `status`='Pending' limit $start,$limit";
+$sql_select = "select * from `order` where `status`='Pending' ORDER BY `date_time` DESC limit $start,$limit";
 $data = mysqli_query($conn,$sql_select);
 
 ?>
@@ -51,6 +51,9 @@ $data = mysqli_query($conn,$sql_select);
             <div class="card">
               <div class="card-header">
                 <h3 class="card-title">View/Manage data of Products</h3>
+                <div class="alert alert-info">
+                  <strong>Total Pending Orders:</strong> <?php echo $data_count; ?> orders received
+                </div>
               </div>
               <!-- /.card-header -->
               <div class="card-body">
